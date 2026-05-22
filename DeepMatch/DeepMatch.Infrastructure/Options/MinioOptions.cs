@@ -1,0 +1,11 @@
+namespace DeepMatch.Infrastructure.Options;
+
+public class MinioOptions
+{
+    public const string SectionName = "MinIO";
+
+    public string? Endpoint { get; set; }
+    public string? AccessKey { get; set; }
+    public string? SecretKey { get; set; }
+    public string? BucketName { get; set; }
+}

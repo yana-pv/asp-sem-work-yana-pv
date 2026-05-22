@@ -1,0 +1,6 @@
+@DeepMatch.WebApi_HostAddress = http://localhost:5205
+
+GET {{DeepMatch.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

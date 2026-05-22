@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMatch — знакомства по мыслям</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+    <nav id="mainNav">
+        <a href="#" class="logo" data-page="daily">DeepMatch</a>
+        <div class="nav-links" id="navLinks">
+            <a href="#" data-page="daily">Вопрос дня</a>
+            <a href="#" data-page="feed">Лента</a>
+            <a href="#" data-page="profile">Профиль</a>
+            <a href="#" data-page="matches">Мэтчи</a>
+            <a href="#" data-page="rules">Правила</a>
+        </div>
+        <div class="nav-auth" id="navAuth">
+            <a href="#" data-page="login">Войти</a>
+        </div>
+    </nav>
+
+    <main id="app">
+        <div class="loading">Загрузка...</div>
+    </main>
+
+    <footer>
+        <p>DeepMatch © 2026 — знакомства по глубине мышления</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/profile.js"></script>
+    <script src="/js/feed.js"></script>
+    <script src="/js/chat.js"></script>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/admin.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
