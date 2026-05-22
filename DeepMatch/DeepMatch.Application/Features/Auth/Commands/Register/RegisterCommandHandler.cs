@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Constants;
 using DeepMatch.Domain.Entities;
@@ -9,19 +8,23 @@ namespace DeepMatch.Application.Features.Auth.Commands.Register;
 
 public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthResponseDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHashService _passwordHashService;
 
-    public RegisterCommandHandler(IApplicationDbContext context, IPasswordHashService passwordHashService)
+    public RegisterCommandHandler(
+        IUserRepository users,
+        IUnitOfWork unitOfWork,
+        IPasswordHashService passwordHashService)
     {
-        _context = context;
+        _users = users;
+        _unitOfWork = unitOfWork;
         _passwordHashService = passwordHashService;
     }
 
     public async Task<AuthResponseDto> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+        var existingUser = await _users.GetByEmailAsync(request.Email, cancellationToken);
 
         if (existingUser != null)
         {
@@ -43,8 +46,8 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthRespo
 
         user.PasswordHash = _passwordHashService.HashPassword(user, request.Password);
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync(cancellationToken);
+        _users.Add(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AuthResponseDto(user.Id, user.Email, user.UserName, user.Role);
     }

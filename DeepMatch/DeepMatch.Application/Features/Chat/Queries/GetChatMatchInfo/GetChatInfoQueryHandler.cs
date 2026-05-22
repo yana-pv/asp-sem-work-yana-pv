@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Entities;
@@ -9,12 +8,12 @@ namespace DeepMatch.Application.Features.Chat.Queries.GetChatMatchInfo;
 
 public class GetChatInfoQueryHandler : IRequestHandler<GetChatInfoQuery, ChatInfoDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IMatchRepository _matches;
     private readonly ICurrentUserService _currentUser;
 
-    public GetChatInfoQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public GetChatInfoQueryHandler(IMatchRepository matches, ICurrentUserService currentUser)
     {
-        _context = context;
+        _matches = matches;
         _currentUser = currentUser;
     }
 
@@ -22,14 +21,7 @@ public class GetChatInfoQueryHandler : IRequestHandler<GetChatInfoQuery, ChatInf
     {
         var currentUserId = _currentUser.UserId;
 
-        var match = await _context.Matches
-            .Include(m => m.User1)
-            .Include(m => m.User2)
-            .Include(m => m.CatalystAnswer1)
-            .ThenInclude(a => a.Question)
-            .Include(m => m.CatalystAnswer2)
-            .ThenInclude(a => a.Question)
-            .FirstOrDefaultAsync(m => m.Id == request.MatchId, cancellationToken);
+        var match = await _matches.GetByIdWithChatInfoAsync(request.MatchId, cancellationToken);
 
         if (match == null)
         {

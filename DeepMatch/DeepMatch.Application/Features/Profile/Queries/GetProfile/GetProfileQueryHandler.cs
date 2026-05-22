@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Common;
 
@@ -7,28 +6,23 @@ namespace DeepMatch.Application.Features.Profile.Queries.GetProfile;
 
 public class GetProfileQueryHandler : IRequestHandler<GetProfileQuery, ProfileDto?>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
     private readonly ICurrentUserService _currentUser;
     private readonly IProfilePhotoUrlService _profilePhotoUrlService;
 
     public GetProfileQueryHandler(
-        IApplicationDbContext context,
+        IUserRepository users,
         ICurrentUserService currentUser,
         IProfilePhotoUrlService profilePhotoUrlService)
     {
-        _context = context;
+        _users = users;
         _currentUser = currentUser;
         _profilePhotoUrlService = profilePhotoUrlService;
     }
 
     public async Task<ProfileDto?> Handle(GetProfileQuery request, CancellationToken cancellationToken)
     {
-        var user = await _context.Users
-            .Include(u => u.Badges)
-            .Include(u => u.Photos)
-            .Include(u => u.Answers)
-            .ThenInclude(a => a.Question)
-            .FirstOrDefaultAsync(u => u.Id == _currentUser.UserId, cancellationToken);
+        var user = await _users.GetProfileAsync(_currentUser.UserId, cancellationToken);
 
         if (user == null) return null;
 

@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Constants;
@@ -10,16 +9,25 @@ namespace DeepMatch.Application.Features.Chat.Commands.SendMessage;
 
 public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, MessageDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IMatchRepository _matches;
+    private readonly IMessageRepository _messages;
+    private readonly INotificationRepository _notifications;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly INotificationService _notificationService;
 
     public SendMessageCommandHandler(
-        IApplicationDbContext context,
+        IMatchRepository matches,
+        IMessageRepository messages,
+        INotificationRepository notifications,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         INotificationService notificationService)
     {
-        _context = context;
+        _matches = matches;
+        _messages = messages;
+        _notifications = notifications;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _notificationService = notificationService;
     }
@@ -28,8 +36,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
     {
         var currentUserId = _currentUser.UserId;
 
-        var match = await _context.Matches
-            .FirstOrDefaultAsync(m => m.Id == request.MatchId, cancellationToken);
+        var match = await _matches.GetByIdAsync(request.MatchId, cancellationToken);
 
         if (match == null)
         {
@@ -61,10 +68,10 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Messages.Add(message);
-        _context.Notifications.Add(notification);
+        _messages.Add(message);
+        _notifications.Add(notification);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         await _notificationService.SendMessageNotificationAsync(currentUserId, request.MatchId, message.Id, request.Content);
         await _notificationService.SendNotificationToUserAsync(otherUserId, ToNotificationPayload(notification));

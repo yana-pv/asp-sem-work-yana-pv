@@ -1,5 +1,5 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Common;
 using DeepMatch.Domain.Entities;
@@ -8,18 +8,24 @@ namespace DeepMatch.Application.Features.Profile.Commands.UploadProfilePhoto;
 
 public class UploadProfilePhotoCommandHandler : IRequestHandler<UploadProfilePhotoCommand, ProfilePhotoDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IUserPhotoRepository _photos;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly IFileStorageService _fileStorage;
     private readonly IProfilePhotoUrlService _profilePhotoUrlService;
 
     public UploadProfilePhotoCommandHandler(
-        IApplicationDbContext context,
+        IUserRepository users,
+        IUserPhotoRepository photos,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         IFileStorageService fileStorage,
         IProfilePhotoUrlService profilePhotoUrlService)
     {
-        _context = context;
+        _users = users;
+        _photos = photos;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _fileStorage = fileStorage;
         _profilePhotoUrlService = profilePhotoUrlService;
@@ -28,7 +34,11 @@ public class UploadProfilePhotoCommandHandler : IRequestHandler<UploadProfilePho
     public async Task<ProfilePhotoDto> Handle(UploadProfilePhotoCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUser.UserId;
-        await _context.Users.FirstAsync(u => u.Id == userId, cancellationToken);
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new NotFoundException(nameof(User), userId);
+        }
 
         var extension = Path.GetExtension(request.FileName);
         var photo = new UserPhoto
@@ -41,8 +51,8 @@ public class UploadProfilePhotoCommandHandler : IRequestHandler<UploadProfilePho
         var fileName = $"photos/{userId}/{photo.Id}{extension}";
         photo.FileName = await _fileStorage.UploadFileAsync(fileName, request.FileStream, request.ContentType);
 
-        _context.UserPhotos.Add(photo);
-        await _context.SaveChangesAsync(cancellationToken);
+        _photos.Add(photo);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new ProfilePhotoDto(photo.Id, _profilePhotoUrlService.GetProfilePhotoUrl(photo.Id), photo.UploadedAt);
     }

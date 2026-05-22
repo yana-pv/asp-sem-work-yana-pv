@@ -1,6 +1,5 @@
 using FluentValidation.Results;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Constants;
@@ -11,12 +10,20 @@ namespace DeepMatch.Application.Features.Reports.Commands.ReportUser;
 
 public class ReportUserCommandHandler : IRequestHandler<ReportUserCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IReportRepository _reports;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
 
-    public ReportUserCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public ReportUserCommandHandler(
+        IUserRepository users,
+        IReportRepository reports,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
-        _context = context;
+        _users = users;
+        _reports = reports;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
 
@@ -32,8 +39,7 @@ public class ReportUserCommandHandler : IRequestHandler<ReportUserCommand>
             });
         }
 
-        var reportedUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == request.ReportedUserId, cancellationToken);
+        var reportedUser = await _users.GetByIdAsync(request.ReportedUserId, cancellationToken);
 
         if (reportedUser == null)
         {
@@ -45,8 +51,7 @@ public class ReportUserCommandHandler : IRequestHandler<ReportUserCommand>
             throw new ForbiddenException("Нельзя пожаловаться на этого пользователя");
         }
 
-        var alreadyReported = await _context.Reports
-            .AnyAsync(r => r.ReporterUserId == reporterId && r.ReportedUserId == request.ReportedUserId, cancellationToken);
+        var alreadyReported = await _reports.ExistsByReporterAndReportedAsync(reporterId, request.ReportedUserId, cancellationToken);
 
         if (alreadyReported)
         {
@@ -74,7 +79,7 @@ public class ReportUserCommandHandler : IRequestHandler<ReportUserCommand>
             reportedUser.BlockedAt = DateTime.UtcNow;
         }
 
-        _context.Reports.Add(report);
-        await _context.SaveChangesAsync(cancellationToken);
+        _reports.Add(report);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

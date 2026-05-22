@@ -5,6 +5,7 @@ using DeepMatch.Domain.Entities;
 using DeepMatch.Infrastructure.Data;
 using DeepMatch.Infrastructure.Identity;
 using DeepMatch.Infrastructure.Options;
+using DeepMatch.Infrastructure.Repositories;
 using DeepMatch.Infrastructure.Services;
 using DeepMatch.Infrastructure.Services.Gemini;
 using Microsoft.AspNetCore.Identity;
@@ -32,8 +33,18 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(dataSource));
 
-        services.AddScoped<IApplicationDbContext>(provider =>
+        services.AddScoped<IUnitOfWork>(provider =>
             provider.GetRequiredService<AppDbContext>());
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IQuestionRepository, QuestionRepository>();
+        services.AddScoped<IAnswerRepository, AnswerRepository>();
+        services.AddScoped<ISwipeRepository, SwipeRepository>();
+        services.AddScoped<IMatchRepository, MatchRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IBadgeRepository, BadgeRepository>();
+        services.AddScoped<IUserPhotoRepository, UserPhotoRepository>();
 
         services.AddHangfire(config =>
             config.UsePostgreSqlStorage(c => c.UseNpgsqlConnection(connectionString)));

@@ -1,18 +1,24 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
+using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Swipes.Common;
+using DeepMatch.Domain.Entities;
 
 namespace DeepMatch.Application.Features.Swipes.Queries.GetSwipesRemaining;
 
 public class GetSwipesRemainingQueryHandler : IRequestHandler<GetSwipesRemainingQuery, SwipesRemainingDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly ISwipeRepository _swipes;
+    private readonly IUserRepository _users;
     private readonly ICurrentUserService _currentUser;
 
-    public GetSwipesRemainingQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public GetSwipesRemainingQueryHandler(
+        ISwipeRepository swipes,
+        IUserRepository users,
+        ICurrentUserService currentUser)
     {
-        _context = context;
+        _swipes = swipes;
+        _users = users;
         _currentUser = currentUser;
     }
 
@@ -21,10 +27,14 @@ public class GetSwipesRemainingQueryHandler : IRequestHandler<GetSwipesRemaining
         var userId = _currentUser.UserId;
         var today = DateTime.UtcNow.Date;
 
-        var used = await _context.Swipes
-            .CountAsync(s => s.SwiperUserId == userId && s.SwipedAt.Date == today, cancellationToken);
+        var used = await _swipes.CountByUserOnDateAsync(userId, today, cancellationToken);
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
 
-        var user = await _context.Users.FirstAsync(u => u.Id == userId, cancellationToken);
+        if (user == null)
+        {
+            throw new NotFoundException(nameof(User), userId);
+        }
+
         var limit = user.GetDailySwipeLimit();
 
         return new SwipesRemainingDto(used, limit, Math.Max(0, limit - used));

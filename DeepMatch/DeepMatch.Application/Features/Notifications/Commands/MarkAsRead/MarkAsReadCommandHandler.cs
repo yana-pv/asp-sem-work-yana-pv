@@ -1,36 +1,36 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using DeepMatch.Application.Common.Interfaces;
 
 namespace DeepMatch.Application.Features.Notifications.Commands.MarkAsRead;
 
 public class MarkAsReadCommandHandler : IRequestHandler<MarkAsReadCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly INotificationRepository _notifications;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
 
-    public MarkAsReadCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public MarkAsReadCommandHandler(
+        INotificationRepository notifications,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
-        _context = context;
+        _notifications = notifications;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
 
     public async Task Handle(MarkAsReadCommand request, CancellationToken cancellationToken)
     {
-        var query = _context.Notifications
-            .Where(n => n.UserId == _currentUser.UserId && !n.IsRead);
+        var notifications = await _notifications.GetUnreadByUserAsync(
+            _currentUser.UserId,
+            request.NotificationId,
+            cancellationToken);
 
-        if (request.NotificationId.HasValue)
-        {
-            query = query.Where(n => n.Id == request.NotificationId.Value);
-        }
-
-        var notifications = await query.ToListAsync(cancellationToken);
         foreach (var notification in notifications)
         {
             notification.IsRead = true;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

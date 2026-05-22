@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
@@ -13,18 +12,33 @@ namespace DeepMatch.Application.Features.Swipes.Commands.SwipeAnswer;
 
 public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, SwipeResultDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IAnswerRepository _answers;
+    private readonly ISwipeRepository _swipes;
+    private readonly IUserRepository _users;
+    private readonly IMatchRepository _matches;
+    private readonly INotificationRepository _notifications;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SwipeAnswerCommandHandler> _logger;
 
     public SwipeAnswerCommandHandler(
-        IApplicationDbContext context,
+        IAnswerRepository answers,
+        ISwipeRepository swipes,
+        IUserRepository users,
+        IMatchRepository matches,
+        INotificationRepository notifications,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         INotificationService notificationService,
         ILogger<SwipeAnswerCommandHandler> logger)
     {
-        _context = context;
+        _answers = answers;
+        _swipes = swipes;
+        _users = users;
+        _matches = matches;
+        _notifications = notifications;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _notificationService = notificationService;
         _logger = logger;
@@ -34,9 +48,7 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
     {
         var currentUserId = _currentUser.UserId;
 
-        var targetAnswer = await _context.Answers
-            .Include(a => a.User)
-            .FirstOrDefaultAsync(a => a.Id == request.AnswerId, cancellationToken);
+        var targetAnswer = await _answers.GetByIdWithUserAsync(request.AnswerId, cancellationToken);
 
         if (targetAnswer == null)
         {
@@ -49,17 +61,20 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
         }
 
         var today = DateTime.UtcNow.Date;
-        var swipesToday = await _context.Swipes
-            .CountAsync(s => s.SwiperUserId == currentUserId && s.SwipedAt.Date == today, cancellationToken);
+        var swipesToday = await _swipes.CountByUserOnDateAsync(currentUserId, today, cancellationToken);
 
-        var currentUser = await _context.Users.FirstAsync(u => u.Id == currentUserId, cancellationToken);
+        var currentUser = await _users.GetByIdAsync(currentUserId, cancellationToken);
+        if (currentUser == null)
+        {
+            throw new NotFoundException(nameof(User), currentUserId);
+        }
+
         if (!currentUser.CanSwipe(swipesToday))
         {
             throw new DailyLimitExceededException(currentUser.GetDailySwipeLimit());
         }
 
-        var existingSwipe = await _context.Swipes
-            .FirstOrDefaultAsync(s => s.SwiperUserId == currentUserId && s.TargetAnswerId == request.AnswerId, cancellationToken);
+        var existingSwipe = await _swipes.GetByUserAndAnswerAsync(currentUserId, request.AnswerId, cancellationToken);
 
         if (existingSwipe != null)
         {
@@ -79,7 +94,7 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
             SwipedAt = DateTime.UtcNow
         };
 
-        _context.Swipes.Add(swipe);
+        _swipes.Add(swipe);
 
         bool isMatch = false;
         Guid? matchId = null;
@@ -91,25 +106,13 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
             targetAnswer.LikesCount++;
 
             var authorId = targetAnswer.UserId;
-            var myAnswerIds = await _context.Answers
-                .Where(a => a.UserId == currentUserId)
-                .Select(a => a.Id)
-                .ToListAsync(cancellationToken);
+            var myAnswerIds = await _answers.GetAnswerIdsByUserIdAsync(currentUserId, cancellationToken);
 
-            var mutualLike = await _context.Swipes
-                .FirstOrDefaultAsync(s =>
-                    s.SwiperUserId == authorId &&
-                    myAnswerIds.Contains(s.TargetAnswerId) &&
-                    s.Direction == SwipeDirection.Like,
-                    cancellationToken);
+            var mutualLike = await _swipes.GetMutualLikeAsync(authorId, myAnswerIds, cancellationToken);
 
             if (mutualLike != null)
             {
-                var existingMatch = await _context.Matches
-                    .FirstOrDefaultAsync(m =>
-                        (m.User1Id == currentUserId && m.User2Id == authorId) ||
-                        (m.User1Id == authorId && m.User2Id == currentUserId),
-                        cancellationToken);
+                var existingMatch = await _matches.GetByUsersAsync(currentUserId, authorId, cancellationToken);
 
                 if (existingMatch != null)
                 {
@@ -133,7 +136,7 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
                         CreatedAt = DateTime.UtcNow
                     };
 
-                    _context.Matches.Add(match);
+                    _matches.Add(match);
                     isMatch = true;
                     matchId = match.Id;
                     matchedUserName = targetAnswer.User.UserName;
@@ -181,13 +184,13 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
                         }
                     });
 
-                    _context.Notifications.AddRange(realtimeNotifications);
+                    _notifications.AddRange(realtimeNotifications);
                     _logger.LogInformation("Создан мэтч {MatchId} между {User1Id} и {User2Id}", match.Id, currentUserId, authorId);
                 }
             }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var notification in realtimeNotifications)
         {

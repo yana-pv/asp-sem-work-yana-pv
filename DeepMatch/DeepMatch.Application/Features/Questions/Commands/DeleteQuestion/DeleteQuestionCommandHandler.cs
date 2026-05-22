@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Entities;
@@ -8,17 +7,18 @@ namespace DeepMatch.Application.Features.Questions.Commands.DeleteQuestion;
 
 public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IQuestionRepository _questions;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteQuestionCommandHandler(IApplicationDbContext context)
+    public DeleteQuestionCommandHandler(IQuestionRepository questions, IUnitOfWork unitOfWork)
     {
-        _context = context;
+        _questions = questions;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task Handle(DeleteQuestionCommand request, CancellationToken cancellationToken)
     {
-        var question = await _context.Questions
-            .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
+        var question = await _questions.GetByIdAsync(request.QuestionId, cancellationToken);
 
         if (question == null)
         {
@@ -28,6 +28,6 @@ public class DeleteQuestionCommandHandler : IRequestHandler<DeleteQuestionComman
         question.IsActive = false;
         question.DateOfDay = null;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

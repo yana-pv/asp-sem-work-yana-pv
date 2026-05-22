@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Entities;
@@ -8,12 +7,20 @@ namespace DeepMatch.Application.Features.Chat.Commands.MarkMessagesAsRead;
 
 public class MarkMessagesAsReadCommandHandler : IRequestHandler<MarkMessagesAsReadCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IMatchRepository _matches;
+    private readonly IMessageRepository _messages;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
 
-    public MarkMessagesAsReadCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public MarkMessagesAsReadCommandHandler(
+        IMatchRepository matches,
+        IMessageRepository messages,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
-        _context = context;
+        _matches = matches;
+        _messages = messages;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
 
@@ -21,8 +28,7 @@ public class MarkMessagesAsReadCommandHandler : IRequestHandler<MarkMessagesAsRe
     {
         var currentUserId = _currentUser.UserId;
 
-        var match = await _context.Matches
-            .FirstOrDefaultAsync(m => m.Id == request.MatchId, cancellationToken);
+        var match = await _matches.GetByIdAsync(request.MatchId, cancellationToken);
 
         if (match == null)
         {
@@ -34,18 +40,12 @@ public class MarkMessagesAsReadCommandHandler : IRequestHandler<MarkMessagesAsRe
             throw new ForbiddenException("Вы не участвуете в этом мэтче");
         }
 
-        var unreadMessages = await _context.Messages
-            .Where(m =>
-                m.MatchId == request.MatchId &&
-                m.SenderUserId != currentUserId &&
-                !m.IsRead)
-            .ToListAsync(cancellationToken);
-
+        var unreadMessages = await _messages.GetUnreadByMatchForUserAsync(request.MatchId, currentUserId, cancellationToken);
         foreach (var message in unreadMessages)
         {
             message.IsRead = true;
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

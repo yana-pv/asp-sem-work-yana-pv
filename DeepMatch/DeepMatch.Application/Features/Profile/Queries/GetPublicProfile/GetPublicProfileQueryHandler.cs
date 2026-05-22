@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Common;
@@ -9,16 +8,19 @@ namespace DeepMatch.Application.Features.Profile.Queries.GetPublicProfile;
 
 public class GetPublicProfileQueryHandler : IRequestHandler<GetPublicProfileQuery, PublicProfileDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IMatchRepository _matches;
     private readonly ICurrentUserService _currentUser;
     private readonly IProfilePhotoUrlService _profilePhotoUrlService;
 
     public GetPublicProfileQueryHandler(
-        IApplicationDbContext context,
+        IUserRepository users,
+        IMatchRepository matches,
         ICurrentUserService currentUser,
         IProfilePhotoUrlService profilePhotoUrlService)
     {
-        _context = context;
+        _users = users;
+        _matches = matches;
         _currentUser = currentUser;
         _profilePhotoUrlService = profilePhotoUrlService;
     }
@@ -27,20 +29,14 @@ public class GetPublicProfileQueryHandler : IRequestHandler<GetPublicProfileQuer
     {
         var currentUserId = _currentUser.UserId;
 
-        var hasMatch = await _context.Matches.AnyAsync(m =>
-            (m.User1Id == currentUserId && m.User2Id == request.UserId) ||
-            (m.User1Id == request.UserId && m.User2Id == currentUserId),
-            cancellationToken);
+        var hasMatch = await _matches.UsersHaveMatchAsync(currentUserId, request.UserId, cancellationToken);
 
         if (!hasMatch)
         {
             throw new ForbiddenException("Профиль доступен только после мэтча");
         }
 
-        var user = await _context.Users
-            .Include(u => u.Badges)
-            .Include(u => u.Photos)
-            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        var user = await _users.GetPublicProfileAsync(request.UserId, cancellationToken);
 
         if (user == null)
         {

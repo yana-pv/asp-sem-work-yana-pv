@@ -1,22 +1,22 @@
-﻿using MediatR;
+using MediatR;
 using DeepMatch.Application.Common.Interfaces;
 
 namespace DeepMatch.Application.Features.Profile.Queries.GetAvatar;
 
 public class GetAvatarQueryHandler : IRequestHandler<GetAvatarQuery, AvatarResult?>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
     private readonly IFileStorageService _fileStorage;
 
-    public GetAvatarQueryHandler(IApplicationDbContext context, IFileStorageService fileStorage)
+    public GetAvatarQueryHandler(IUserRepository users, IFileStorageService fileStorage)
     {
-        _context = context;
+        _users = users;
         _fileStorage = fileStorage;
     }
 
     public async Task<AvatarResult?> Handle(GetAvatarQuery request, CancellationToken cancellationToken)
     {
-        var user = await _context.Users.FindAsync(new object[] { request.UserId }, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user?.AvatarUrl == null)
             return null;

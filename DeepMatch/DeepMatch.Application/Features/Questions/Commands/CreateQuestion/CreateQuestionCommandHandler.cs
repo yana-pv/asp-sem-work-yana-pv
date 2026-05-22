@@ -1,4 +1,4 @@
-﻿using FluentValidation.Results;
+using FluentValidation.Results;
 using MediatR;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Entities;
@@ -7,15 +7,15 @@ using AppValidationException = DeepMatch.Application.Common.Exceptions.Validatio
 
 namespace DeepMatch.Application.Features.Questions.Commands.CreateQuestion;
 
-
-
 public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionCommand, Guid>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IQuestionRepository _questions;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public CreateQuestionCommandHandler(IApplicationDbContext context)
+    public CreateQuestionCommandHandler(IQuestionRepository questions, IUnitOfWork unitOfWork)
     {
-        _context = context;
+        _questions = questions;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<Guid> Handle(CreateQuestionCommand request, CancellationToken cancellationToken)
@@ -37,8 +37,8 @@ public class CreateQuestionCommandHandler : IRequestHandler<CreateQuestionComman
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Questions.Add(question);
-        await _context.SaveChangesAsync(cancellationToken);
+        _questions.Add(question);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return question.Id;
     }

@@ -5,7 +5,7 @@ using DeepMatch.Application.Common.Interfaces;
 
 namespace DeepMatch.Infrastructure.Data;
 
-public class AppDbContext : DbContext, IApplicationDbContext
+public class AppDbContext : DbContext, IUnitOfWork
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

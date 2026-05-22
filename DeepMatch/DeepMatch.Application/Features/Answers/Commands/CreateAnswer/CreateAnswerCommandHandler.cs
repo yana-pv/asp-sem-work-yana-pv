@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
@@ -11,18 +10,30 @@ namespace DeepMatch.Application.Features.Answers.Commands.CreateAnswer;
 
 public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, AnswerDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IQuestionRepository _questions;
+    private readonly IAnswerRepository _answers;
+    private readonly IUserRepository _users;
+    private readonly INotificationRepository _notifications;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly INotificationService _notificationService;
     private readonly ILogger<CreateAnswerCommandHandler> _logger;
 
     public CreateAnswerCommandHandler(
-        IApplicationDbContext context,
+        IQuestionRepository questions,
+        IAnswerRepository answers,
+        IUserRepository users,
+        INotificationRepository notifications,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         INotificationService notificationService,
         ILogger<CreateAnswerCommandHandler> logger)
     {
-        _context = context;
+        _questions = questions;
+        _answers = answers;
+        _users = users;
+        _notifications = notifications;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _notificationService = notificationService;
         _logger = logger;
@@ -30,16 +41,14 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
 
     public async Task<AnswerDto> Handle(CreateAnswerCommand request, CancellationToken cancellationToken)
     {
-        var question = await _context.Questions
-            .FirstOrDefaultAsync(q => q.Id == request.QuestionId, cancellationToken);
+        var question = await _questions.GetByIdAsync(request.QuestionId, cancellationToken);
 
         if (question == null)
         {
             throw new NotFoundException(nameof(Question), request.QuestionId);
         }
 
-        var existingAnswer = await _context.Answers
-            .FirstOrDefaultAsync(a => a.UserId == _currentUser.UserId && a.QuestionId == request.QuestionId, cancellationToken);
+        var existingAnswer = await _answers.GetByUserAndQuestionAsync(_currentUser.UserId, request.QuestionId, cancellationToken);
 
         if (existingAnswer != null)
         {
@@ -59,9 +68,14 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
             Tags = new List<string>()
         };
 
-        _context.Answers.Add(answer);
+        _answers.Add(answer);
 
-        var user = await _context.Users.FirstAsync(u => u.Id == _currentUser.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(_currentUser.UserId, cancellationToken);
+        if (user == null)
+        {
+            throw new NotFoundException(nameof(User), _currentUser.UserId);
+        }
+
         user.Rating.Increase(BusinessRules.Rating.AnswerReward);
 
         var ratingNotification = new Notification
@@ -73,9 +87,9 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
             Link = ClientRoutes.Profile,
             CreatedAt = DateTime.UtcNow
         };
-        _context.Notifications.Add(ratingNotification);
+        _notifications.Add(ratingNotification);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Пользователь {UserId} ответил на вопрос {QuestionId}", _currentUser.UserId, request.QuestionId);
 
         await _notificationService.SendNotificationToUserAsync(_currentUser.UserId, ToNotificationPayload(ratingNotification));

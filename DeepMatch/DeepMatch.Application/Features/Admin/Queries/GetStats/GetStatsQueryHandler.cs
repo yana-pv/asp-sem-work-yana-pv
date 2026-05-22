@@ -1,29 +1,40 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
-using DeepMatch.Domain.Constants;
 using DeepMatch.Application.Features.Admin.Common;
 
 namespace DeepMatch.Application.Features.Admin.Queries.GetStats;
 
 public class GetStatsQueryHandler : IRequestHandler<GetStatsQuery, AdminStatsDto>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IQuestionRepository _questions;
+    private readonly IAnswerRepository _answers;
+    private readonly IMatchRepository _matches;
+    private readonly IReportRepository _reports;
 
-    public GetStatsQueryHandler(IApplicationDbContext context)
+    public GetStatsQueryHandler(
+        IUserRepository users,
+        IQuestionRepository questions,
+        IAnswerRepository answers,
+        IMatchRepository matches,
+        IReportRepository reports)
     {
-        _context = context;
+        _users = users;
+        _questions = questions;
+        _answers = answers;
+        _matches = matches;
+        _reports = reports;
     }
 
     public async Task<AdminStatsDto> Handle(GetStatsQuery request, CancellationToken cancellationToken)
     {
-        var usersCount = await _context.Users.CountAsync(u => u.Role != UserRoles.System, cancellationToken);
-        var blockedUsersCount = await _context.Users.CountAsync(u => u.Role != UserRoles.System && u.IsBlocked, cancellationToken);
+        var usersCount = await _users.CountNonSystemUsersAsync(cancellationToken);
+        var blockedUsersCount = await _users.CountBlockedNonSystemUsersAsync(cancellationToken);
         var activeUsersCount = usersCount - blockedUsersCount;
-        var questionsCount = await _context.Questions.CountAsync(q => q.IsActive, cancellationToken);
-        var answersCount = await _context.Answers.CountAsync(cancellationToken);
-        var matchesCount = await _context.Matches.CountAsync(cancellationToken);
-        var reportsCount = await _context.Reports.CountAsync(cancellationToken);
+        var questionsCount = await _questions.CountActiveAsync(cancellationToken);
+        var answersCount = await _answers.CountAsync(cancellationToken);
+        var matchesCount = await _matches.CountAsync(cancellationToken);
+        var reportsCount = await _reports.CountAsync(cancellationToken);
 
         return new AdminStatsDto(
             usersCount,

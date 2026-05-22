@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Constants;
 
@@ -7,22 +6,23 @@ namespace DeepMatch.Application.Features.Answers.Commands.AnalyzeAnswerTags;
 
 public class AnalyzeUnprocessedAnswersCommandHandler : IRequestHandler<AnalyzeUnprocessedAnswersCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IAnswerRepository _answers;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IAiService _aiService;
 
-    public AnalyzeUnprocessedAnswersCommandHandler(IApplicationDbContext context, IAiService aiService)
+    public AnalyzeUnprocessedAnswersCommandHandler(
+        IAnswerRepository answers,
+        IUnitOfWork unitOfWork,
+        IAiService aiService)
     {
-        _context = context;
+        _answers = answers;
+        _unitOfWork = unitOfWork;
         _aiService = aiService;
     }
 
     public async Task Handle(AnalyzeUnprocessedAnswersCommand request, CancellationToken cancellationToken)
     {
-        var allAnswers = await _context.Answers.ToListAsync(cancellationToken);
-        var unprocessed = allAnswers
-            .Where(a => a.Tags == null || a.Tags.Count == 0)
-            .Take(BusinessRules.Answers.AnalyzeTagsBatchSize)
-            .ToList();
+        var unprocessed = await _answers.GetUnprocessedBatchAsync(BusinessRules.Answers.AnalyzeTagsBatchSize, cancellationToken);
 
         foreach (var answer in unprocessed)
         {
@@ -39,7 +39,7 @@ public class AnalyzeUnprocessedAnswersCommandHandler : IRequestHandler<AnalyzeUn
 
         if (unprocessed.Any())
         {
-            await _context.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

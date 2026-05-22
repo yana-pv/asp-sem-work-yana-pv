@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Constants;
@@ -9,16 +8,25 @@ namespace DeepMatch.Application.Features.Chat.Commands.GenerateIcebreaker;
 
 public class GenerateIcebreakerCommandHandler : IRequestHandler<GenerateIcebreakerCommand, string>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IMatchRepository _matches;
+    private readonly IAnswerRepository _answers;
+    private readonly IMessageRepository _messages;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly IAiService _aiService;
 
     public GenerateIcebreakerCommandHandler(
-        IApplicationDbContext context,
+        IMatchRepository matches,
+        IAnswerRepository answers,
+        IMessageRepository messages,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         IAiService aiService)
     {
-        _context = context;
+        _matches = matches;
+        _answers = answers;
+        _messages = messages;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _aiService = aiService;
     }
@@ -27,8 +35,7 @@ public class GenerateIcebreakerCommandHandler : IRequestHandler<GenerateIcebreak
     {
         var currentUserId = _currentUser.UserId;
 
-        var match = await _context.Matches
-            .FirstOrDefaultAsync(m => m.Id == request.MatchId, cancellationToken);
+        var match = await _matches.GetByIdAsync(request.MatchId, cancellationToken);
 
         if (match == null)
         {
@@ -42,18 +49,14 @@ public class GenerateIcebreakerCommandHandler : IRequestHandler<GenerateIcebreak
 
         var otherUserId = match.GetOtherUserId(currentUserId);
 
-        var myAnswers = await _context.Answers
-            .Where(a => a.UserId == currentUserId)
-            .ToListAsync(cancellationToken);
+        var myAnswers = await _answers.GetAnswersByUserIdAsync(currentUserId, cancellationToken);
         var myTags = myAnswers
             .Where(a => a.Tags != null && a.Tags.Any())
             .SelectMany(a => a.Tags)
             .Distinct()
             .ToList();
 
-        var otherAnswers = await _context.Answers
-            .Where(a => a.UserId == otherUserId)
-            .ToListAsync(cancellationToken);
+        var otherAnswers = await _answers.GetAnswersByUserIdAsync(otherUserId, cancellationToken);
         var otherTags = otherAnswers
             .Where(a => a.Tags != null && a.Tags.Any())
             .SelectMany(a => a.Tags)
@@ -76,8 +79,8 @@ public class GenerateIcebreakerCommandHandler : IRequestHandler<GenerateIcebreak
             IsRead = false
         };
 
-        _context.Messages.Add(message);
-        await _context.SaveChangesAsync(cancellationToken);
+        _messages.Add(message);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return icebreaker;
     }

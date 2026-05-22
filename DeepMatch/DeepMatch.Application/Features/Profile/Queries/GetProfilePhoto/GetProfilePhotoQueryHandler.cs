@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Queries.GetAvatar;
 
@@ -7,19 +6,18 @@ namespace DeepMatch.Application.Features.Profile.Queries.GetProfilePhoto;
 
 public class GetProfilePhotoQueryHandler : IRequestHandler<GetProfilePhotoQuery, AvatarResult?>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserPhotoRepository _photos;
     private readonly IFileStorageService _fileStorage;
 
-    public GetProfilePhotoQueryHandler(IApplicationDbContext context, IFileStorageService fileStorage)
+    public GetProfilePhotoQueryHandler(IUserPhotoRepository photos, IFileStorageService fileStorage)
     {
-        _context = context;
+        _photos = photos;
         _fileStorage = fileStorage;
     }
 
     public async Task<AvatarResult?> Handle(GetProfilePhotoQuery request, CancellationToken cancellationToken)
     {
-        var photo = await _context.UserPhotos
-            .FirstOrDefaultAsync(p => p.Id == request.PhotoId, cancellationToken);
+        var photo = await _photos.GetByIdAsync(request.PhotoId, cancellationToken);
 
         if (photo == null)
         {

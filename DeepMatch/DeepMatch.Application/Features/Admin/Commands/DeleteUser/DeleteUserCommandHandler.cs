@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Domain.Constants;
@@ -9,12 +8,17 @@ namespace DeepMatch.Application.Features.Admin.Commands.DeleteUser;
 
 public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
 
-    public DeleteUserCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    public DeleteUserCommandHandler(
+        IUserRepository users,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
-        _context = context;
+        _users = users;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
 
@@ -25,7 +29,7 @@ public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand>
             throw new ForbiddenException("Нельзя заблокировать самого себя");
         }
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        var user = await _users.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user == null)
         {
@@ -43,6 +47,6 @@ public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand>
             : request.Reason.Trim();
         user.BlockedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 }

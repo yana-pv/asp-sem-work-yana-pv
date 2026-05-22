@@ -1,22 +1,25 @@
-﻿using MediatR;
-using Microsoft.EntityFrameworkCore;
+using MediatR;
+using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
+using DeepMatch.Domain.Entities;
 
 namespace DeepMatch.Application.Features.Profile.Commands.UploadAvatar;
 
-
 public class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCommand, string>
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IUserRepository _users;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
     private readonly IFileStorageService _fileStorage;
 
     public UploadAvatarCommandHandler(
-        IApplicationDbContext context,
+        IUserRepository users,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         IFileStorageService fileStorage)
     {
-        _context = context;
+        _users = users;
+        _unitOfWork = unitOfWork;
         _currentUser = currentUser;
         _fileStorage = fileStorage;
     }
@@ -24,7 +27,11 @@ public class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCommand, s
     public async Task<string> Handle(UploadAvatarCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUser.UserId;
-        var user = await _context.Users.FirstAsync(u => u.Id == userId, cancellationToken);
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+        {
+            throw new NotFoundException(nameof(User), userId);
+        }
 
         var extension = Path.GetExtension(request.FileName);
         var fileName = $"avatars/{userId}{extension}";
@@ -32,7 +39,7 @@ public class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCommand, s
         var url = await _fileStorage.UploadFileAsync(fileName, request.FileStream, request.ContentType);
 
         user.AvatarUrl = url;
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return url;
     }

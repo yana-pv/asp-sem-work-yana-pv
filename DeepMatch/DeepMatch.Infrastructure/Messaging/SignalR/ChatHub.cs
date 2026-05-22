@@ -3,17 +3,17 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using DeepMatch.Application.Common.Interfaces;
+using DeepMatch.Infrastructure.Data;
 
 namespace DeepMatch.Infrastructure.Messaging.SignalR;
 
 [Authorize]
 public class ChatHub : Hub
 {
-    private readonly IApplicationDbContext _context;
+    private readonly AppDbContext _context;
     private readonly ILogger<ChatHub> _logger;
 
-    public ChatHub(IApplicationDbContext context, ILogger<ChatHub> logger)
+    public ChatHub(AppDbContext context, ILogger<ChatHub> logger)
     {
         _context = context;
         _logger = logger;
