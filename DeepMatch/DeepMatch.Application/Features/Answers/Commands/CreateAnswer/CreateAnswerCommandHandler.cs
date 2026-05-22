@@ -5,6 +5,7 @@ using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Constants;
 using DeepMatch.Domain.Entities;
 using DeepMatch.Application.Features.Answers.Common;
+using DeepMatch.Application.Features.Notifications.Mappers;
 
 namespace DeepMatch.Application.Features.Answers.Commands.CreateAnswer;
 
@@ -92,18 +93,8 @@ public class CreateAnswerCommandHandler : IRequestHandler<CreateAnswerCommand, A
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Пользователь {UserId} ответил на вопрос {QuestionId}", _currentUser.UserId, request.QuestionId);
 
-        await _notificationService.SendNotificationToUserAsync(_currentUser.UserId, ToNotificationPayload(ratingNotification));
+        await _notificationService.SendNotificationToUserAsync(_currentUser.UserId, NotificationMapper.ToPayload(ratingNotification));
 
         return new AnswerDto(answer.Id, answer.Text, answer.QuestionId, answer.CreatedAt);
     }
-
-    private static object ToNotificationPayload(Notification notification) => new
-    {
-        notification.Id,
-        notification.Type,
-        notification.Title,
-        notification.Link,
-        notification.IsRead,
-        notification.CreatedAt
-    };
 }

@@ -2,6 +2,7 @@ using MediatR;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Common;
+using DeepMatch.Application.Features.Profile.Mappers;
 using DeepMatch.Domain.Entities;
 
 namespace DeepMatch.Application.Features.Profile.Queries.GetPublicProfile;
@@ -43,15 +44,6 @@ public class GetPublicProfileQueryHandler : IRequestHandler<GetPublicProfileQuer
             throw new NotFoundException(nameof(User), request.UserId);
         }
 
-        return new PublicProfileDto(
-            user.Id,
-            user.UserName,
-            user.Bio,
-            user.Rating.Value,
-            user.Badges.Select(b => new BadgeDto(b.Id, b.Name, b.Description)).ToList(),
-            user.Photos
-                .OrderByDescending(p => p.UploadedAt)
-                .Select(p => new ProfilePhotoDto(p.Id, _profilePhotoUrlService.GetProfilePhotoUrl(p.Id), p.UploadedAt))
-                .ToList());
+        return ProfileMapper.ToPublicProfileDto(user, _profilePhotoUrlService);
     }
 }

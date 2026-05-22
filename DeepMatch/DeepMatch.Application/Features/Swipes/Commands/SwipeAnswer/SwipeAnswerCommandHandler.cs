@@ -7,6 +7,7 @@ using DeepMatch.Domain.Entities;
 using DeepMatch.Domain.Enums;
 using FluentValidation.Results;
 using DeepMatch.Application.Features.Swipes.Common;
+using DeepMatch.Application.Features.Notifications.Mappers;
 
 namespace DeepMatch.Application.Features.Swipes.Commands.SwipeAnswer;
 
@@ -194,19 +195,9 @@ public class SwipeAnswerCommandHandler : IRequestHandler<SwipeAnswerCommand, Swi
 
         foreach (var notification in realtimeNotifications)
         {
-            await _notificationService.SendNotificationToUserAsync(notification.UserId, ToNotificationPayload(notification));
+            await _notificationService.SendNotificationToUserAsync(notification.UserId, NotificationMapper.ToPayload(notification));
         }
 
         return new SwipeResultDto(isMatch, matchId, matchedUserName);
     }
-
-    private static object ToNotificationPayload(Notification notification) => new
-    {
-        notification.Id,
-        notification.Type,
-        notification.Title,
-        notification.Link,
-        notification.IsRead,
-        notification.CreatedAt
-    };
 }

@@ -2,6 +2,7 @@ using MediatR;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Features.Profile.Common;
+using DeepMatch.Application.Features.Profile.Mappers;
 using DeepMatch.Domain.Entities;
 
 namespace DeepMatch.Application.Features.Profile.Commands.UploadProfilePhoto;
@@ -54,6 +55,6 @@ public class UploadProfilePhotoCommandHandler : IRequestHandler<UploadProfilePho
         _photos.Add(photo);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new ProfilePhotoDto(photo.Id, _profilePhotoUrlService.GetProfilePhotoUrl(photo.Id), photo.UploadedAt);
+        return ProfileMapper.ToPhotoDto(photo, _profilePhotoUrlService);
     }
 }

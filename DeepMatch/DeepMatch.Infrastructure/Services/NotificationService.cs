@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using DeepMatch.Application.Common.Interfaces;
+using DeepMatch.Application.Features.Notifications.Common;
 using DeepMatch.Infrastructure.Messaging.SignalR;
 
 namespace DeepMatch.Infrastructure.Services;
@@ -34,7 +35,7 @@ internal class NotificationService : INotificationService
             .SendAsync("ReceiveMessage", new { id = messageId, senderId = userId, matchId, content = messagePreview, timestamp = DateTime.UtcNow });
     }
 
-    public async Task SendNotificationToUserAsync(Guid userId, object notification)
+    public async Task SendNotificationToUserAsync(Guid userId, NotificationPayload notification)
     {
         _logger.LogInformation("Отправка realtime-уведомления пользователю {UserId}", userId);
 

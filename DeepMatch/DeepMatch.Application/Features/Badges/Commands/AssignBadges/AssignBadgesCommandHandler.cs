@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using DeepMatch.Application.Common.Interfaces;
+using DeepMatch.Application.Features.Notifications.Mappers;
 using DeepMatch.Domain.Constants;
 using DeepMatch.Domain.Entities;
 using DeepMatch.Domain.Enums;
@@ -158,17 +159,7 @@ public class AssignBadgesCommandHandler : IRequestHandler<AssignBadgesCommand>
 
         foreach (var notification in realtimeNotifications)
         {
-            await _notificationService.SendNotificationToUserAsync(notification.UserId, ToNotificationPayload(notification));
+            await _notificationService.SendNotificationToUserAsync(notification.UserId, NotificationMapper.ToPayload(notification));
         }
     }
-
-    private static object ToNotificationPayload(Notification notification) => new
-    {
-        notification.Id,
-        notification.Type,
-        notification.Title,
-        notification.Link,
-        notification.IsRead,
-        notification.CreatedAt
-    };
 }

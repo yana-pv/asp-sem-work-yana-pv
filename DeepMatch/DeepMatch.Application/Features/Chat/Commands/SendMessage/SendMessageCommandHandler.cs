@@ -4,6 +4,7 @@ using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Constants;
 using DeepMatch.Domain.Entities;
 using DeepMatch.Application.Features.Chat.Common;
+using DeepMatch.Application.Features.Notifications.Mappers;
 
 namespace DeepMatch.Application.Features.Chat.Commands.SendMessage;
 
@@ -74,18 +75,14 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         await _notificationService.SendMessageNotificationAsync(currentUserId, request.MatchId, message.Id, request.Content);
-        await _notificationService.SendNotificationToUserAsync(otherUserId, ToNotificationPayload(notification));
+        await _notificationService.SendNotificationToUserAsync(otherUserId, NotificationMapper.ToPayload(notification));
 
-        return new MessageDto(message.Id, message.MatchId, message.Content, message.SenderUserId, message.Timestamp, message.IsIcebreaker);
+        return new MessageDto(
+            message.Id,
+            message.MatchId,
+            message.Content,
+            message.SenderUserId,
+            message.Timestamp,
+            message.IsIcebreaker);
     }
-
-    private static object ToNotificationPayload(Notification notification) => new
-    {
-        notification.Id,
-        notification.Type,
-        notification.Title,
-        notification.Link,
-        notification.IsRead,
-        notification.CreatedAt
-    };
 }
