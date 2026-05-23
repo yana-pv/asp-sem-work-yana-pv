@@ -78,6 +78,13 @@ public class MatchRepository : IMatchRepository
             cancellationToken);
     }
 
+    public Task<bool> MatchInvolvesUserAsync(Guid matchId, Guid userId, CancellationToken cancellationToken)
+    {
+        return _context.Matches.AnyAsync(
+            m => m.Id == matchId && (m.User1Id == userId || m.User2Id == userId),
+            cancellationToken);
+    }
+
     public Task<int> CountByUserAsync(Guid userId, CancellationToken cancellationToken)
     {
         return _context.Matches.CountAsync(m => m.User1Id == userId || m.User2Id == userId, cancellationToken);

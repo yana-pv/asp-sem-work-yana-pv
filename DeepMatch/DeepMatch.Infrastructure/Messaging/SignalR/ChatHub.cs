@@ -1,21 +1,20 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using DeepMatch.Infrastructure.Data;
+using DeepMatch.Application.Common.Interfaces;
 
 namespace DeepMatch.Infrastructure.Messaging.SignalR;
 
 [Authorize]
 public class ChatHub : Hub
 {
-    private readonly AppDbContext _context;
+    private readonly IMatchRepository _matches;
     private readonly ILogger<ChatHub> _logger;
 
-    public ChatHub(AppDbContext context, ILogger<ChatHub> logger)
+    public ChatHub(IMatchRepository matches, ILogger<ChatHub> logger)
     {
-        _context = context;
+        _matches = matches;
         _logger = logger;
     }
 
@@ -27,8 +26,7 @@ public class ChatHub : Hub
             throw new HubException("Некорректный запрос на подключение к чату");
         }
 
-        var hasAccess = await _context.Matches
-            .AnyAsync(m => m.Id == parsedMatchId && (m.User1Id == userId || m.User2Id == userId));
+        var hasAccess = await _matches.MatchInvolvesUserAsync(parsedMatchId, userId, Context.ConnectionAborted);
 
         if (!hasAccess)
         {

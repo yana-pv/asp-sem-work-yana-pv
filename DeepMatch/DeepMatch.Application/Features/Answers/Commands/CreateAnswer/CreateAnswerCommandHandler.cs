@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using DeepMatch.Application.Common.Constants;
 using DeepMatch.Application.Common.Interfaces;
 using DeepMatch.Application.Common.Exceptions;
 using DeepMatch.Domain.Constants;

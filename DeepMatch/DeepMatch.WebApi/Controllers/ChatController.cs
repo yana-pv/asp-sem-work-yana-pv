@@ -7,6 +7,7 @@ using DeepMatch.WebApi.Contracts.Requests;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DeepMatch.Application.Features.Chat.Common;
+using DeepMatch.WebApi.Contracts.Responses;
 
 namespace DeepMatch.WebApi.Controllers;
 
@@ -90,9 +91,9 @@ public class ChatController : ApiControllerBase
     /// <response code="403">Пользователь не участвует в этом мэтче.</response>
     /// <response code="404">Мэтч не найден.</response>
     [HttpPost("{matchId}/icebreaker")]
-    public async Task<ActionResult<object>> GenerateIcebreaker(Guid matchId)
+    public async Task<ActionResult<IcebreakerResponse>> GenerateIcebreaker(Guid matchId)
     {
         var result = await Mediator.Send(new GenerateIcebreakerCommand { MatchId = matchId });
-        return Ok(new { question = result });
+        return Ok(new IcebreakerResponse(result));
     }
 }

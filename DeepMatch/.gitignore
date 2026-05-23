@@ -3,3 +3,14 @@ obj/
 .vs/
 logs/
 *.lscache
+
+# Local configuration and secrets
+.env
+.env.*
+*.user
+*.suo
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+appsettings.Production.json

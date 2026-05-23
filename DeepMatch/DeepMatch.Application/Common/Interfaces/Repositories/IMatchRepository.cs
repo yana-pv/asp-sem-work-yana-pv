@@ -10,6 +10,7 @@ public interface IMatchRepository
     Task<Match?> GetByUsersAsync(Guid user1Id, Guid user2Id, CancellationToken cancellationToken);
     Task<List<MatchDto>> GetMatchesForUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<bool> UsersHaveMatchAsync(Guid user1Id, Guid user2Id, CancellationToken cancellationToken);
+    Task<bool> MatchInvolvesUserAsync(Guid matchId, Guid userId, CancellationToken cancellationToken);
     Task<int> CountByUserAsync(Guid userId, CancellationToken cancellationToken);
     Task<int> CountAsync(CancellationToken cancellationToken);
     void Add(Match match);

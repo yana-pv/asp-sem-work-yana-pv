@@ -1,5 +1,6 @@
 using DeepMatch.Application.Features.AiAssistant.Queries.GetDevilsAdvocate;
 using DeepMatch.WebApi.Contracts.Requests;
+using DeepMatch.WebApi.Contracts.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,7 +19,7 @@ public class AiAssistantController : ApiControllerBase
     /// <returns>Позиция адвоката дьявола по теме ответа.</returns>
     /// <response code="200">Ответ адвоката дьявола сгенерирован.</response>
     [HttpPost("devils-advocate")]
-    public async Task<ActionResult<object>> GetDevilsAdvocate(DevilsAdvocateRequest request)
+    public async Task<ActionResult<DevilsAdvocateResponse>> GetDevilsAdvocate(DevilsAdvocateRequest request)
     {
         var query = new GetDevilsAdvocateQuery
         {
@@ -27,6 +28,6 @@ public class AiAssistantController : ApiControllerBase
         };
 
         var result = await Mediator.Send(query);
-        return Ok(new { alternativeView = result });
+        return Ok(new DevilsAdvocateResponse(result));
     }
 }

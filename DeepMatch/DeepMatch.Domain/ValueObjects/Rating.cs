@@ -9,14 +9,21 @@ public class Rating
     public Rating(int value = 0)
     {
         if (value < 0)
+        {
             throw new ArgumentException("Рейтинг не может быть отрицательным", nameof(value));
+
+        }
+
         Value = value;
     }
 
     public void Increase(int amount = BusinessRules.Rating.DefaultIncreaseAmount)
     {
         if (amount <= 0)
+        {
             throw new ArgumentException("Величина повышения рейтинга должна быть положительной", nameof(amount));
+        }
+
         Value += amount;
     }
 
